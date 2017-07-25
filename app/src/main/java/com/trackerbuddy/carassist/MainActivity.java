@@ -2,6 +2,7 @@ package com.trackerbuddy.carassist;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.Context;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -11,8 +12,14 @@ import android.view.ContextMenu;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Dictionary;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -22,6 +29,7 @@ import java.util.Set;
 public class MainActivity extends AppCompatActivity {
 
      public Map<Integer,BluetoothDevice> BluetoothMenu =  new HashMap<Integer, BluetoothDevice>();
+    private static final String cardevicedetails  = "RegisteredCarDevice3.txt";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,17 +38,33 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton)findViewById(R.id.fab);
-        fab.setOnCreateContextMenuListener(this);
-        //registerForContextMenu(fab);
-        /*fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-              //  Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-              //          .setAction("Action", null).show();
-                registerForContextMenu(view);
+        try {
+            FileInputStream registeredDevice=openFileInput(cardevicedetails);
+            String registeredCar="";
+            int size;
+            String neuText = null;
+
+            // read inside if it is not null (-1 means empty)
+            while ((size = registeredDevice.read()) != -1) {
+                // add & append content
+                neuText += Character.toString((char) size);
             }
-        });*/
+
+            registeredDevice.close();
+            if(neuText.isEmpty()){
+               // throw FileNotFoundException;
+            }
+            else {
+                String[] cardetails=neuText.split(",");
+                displayCarDetails(cardetails[0],cardetails[1]);
+            }
+        } catch (FileNotFoundException e) {
+            Button setupButton= (Button)findViewById(R.id.button);
+            setupButton.setVisibility(View.VISIBLE);
+            setupButton.setOnCreateContextMenuListener(this);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -68,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onCreateContextMenu(ContextMenu menu, View v,
                                     ContextMenu.ContextMenuInfo menuInfo) {
-        if(v.getId()== R.id.fab) {
+        if(v.getId()== R.id.button) {
             BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
             menu.setHeaderTitle("Select Car Device");
@@ -91,12 +115,26 @@ public class MainActivity extends AppCompatActivity {
     public boolean onContextItemSelected(MenuItem item){
         int menuId=item.getItemId();
         BluetoothDevice cardevice = BluetoothMenu.get(menuId);
-        Toast.makeText(this, "Device "+cardevice.getName()+" is set!",Toast.LENGTH_LONG).show();
-        return true;
-      /*  Snackbar.make(this.findViewById(R.id.fab), "Device"+cardevice.getName()+" is set!", Snackbar.LENGTH_LONG).setAction("Action", null).show();
-        Toast.makeText(closeContextMenu(),"Your car device is set!",3000);
-        //store this device
-        */
+        try{
+            FileOutputStream fos = openFileOutput(cardevicedetails,MODE_PRIVATE);
+            String cardetails=cardevice.getName().trim()+","+cardevice.getAddress();
+            fos.write(cardetails.getBytes());
+            fos.close();
+            findViewById(R.id.button).setVisibility(View.INVISIBLE);
+            Toast.makeText(this, "Device "+cardevice.getName()+" is set!",Toast.LENGTH_LONG).show();
+            displayCarDetails(cardevice.getName(),cardevice.getAddress());
+            return true;
+        }
+        catch(IOException e){
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public void displayCarDetails(String name, String addr){
+        TextView v= (TextView)findViewById(R.id.text2);
+
+        v.setText("Registered Device details :\nName:"+name+"\nMac Addr:"+addr);
     }
 
 }
